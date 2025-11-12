@@ -1,0 +1,12 @@
+{
+  "name": "clippy-clipboard-sync",
+  "version": "1.0.0",
+  "description": "Simpel clipboard sync webapp (Node.js/Express backend, React/MUI frontend)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

@@ -1,0 +1,24 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# VSCode
+.vscode/
+
+# Env files
+.env
+.env.*
+
+# MacOS
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Build output (voor toekomstige uitbreidingen)
+dist/
+build/
