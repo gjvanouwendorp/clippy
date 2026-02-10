@@ -43,6 +43,8 @@
         Icon,
         IconButton,
         Tooltip,
+        Switch,
+        FormControlLabel,
         createTheme,
         ThemeProvider,
       } = MaterialUI;
@@ -73,6 +75,9 @@
         const [darkMode, setDarkMode] = React.useState(() => {
           return localStorage.getItem("clippy-dark-mode") === "true";
         });
+        const [autoPaste, setAutoPaste] = React.useState(() => {
+          return localStorage.getItem("clippy-auto-paste") === "true";
+        });
         const [content, setContent] = React.useState("");
         const [type, setType] = React.useState("text");
         const [loading, setLoading] = React.useState(false);
@@ -87,6 +92,14 @@
           setDarkMode(prev => {
             const next = !prev;
             localStorage.setItem("clippy-dark-mode", String(next));
+            return next;
+          });
+        };
+
+        const toggleAutoPaste = () => {
+          setAutoPaste(prev => {
+            const next = !prev;
+            localStorage.setItem("clippy-auto-paste", String(next));
             return next;
           });
         };
@@ -177,6 +190,16 @@
           }
         };
 
+        // Auto-paste on window focus
+        const handlePasteRef = React.useRef(handlePaste);
+        handlePasteRef.current = handlePaste;
+        React.useEffect(() => {
+          if (!autoPaste) return;
+          const onFocus = () => handlePasteRef.current();
+          window.addEventListener("focus", onFocus);
+          return () => window.removeEventListener("focus", onFocus);
+        }, [autoPaste]);
+
         // Render content based on type
         const renderContent = () => {
           if (fetching) {
@@ -206,7 +229,12 @@
         return (
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Box sx={{ position: "fixed", top: 16, right: 16 }}>
+            <Box sx={{ position: "fixed", top: 16, right: 16, display: "flex", alignItems: "center", gap: 1 }}>
+              <FormControlLabel
+                control={<Switch checked={autoPaste} onChange={toggleAutoPaste} size="small" />}
+                label="Auto-paste"
+                sx={{ mr: 0, "& .MuiFormControlLabel-label": { fontSize: 14 } }}
+              />
               <Tooltip title={darkMode ? "Switch to light mode" : "Switch to dark mode"}>
                 <IconButton onClick={toggleDarkMode} color="inherit">
                   <Icon>{darkMode ? "light_mode" : "dark_mode"}</Icon>
