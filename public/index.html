@@ -45,34 +45,67 @@
         Tooltip,
       } = MaterialUI;
 
+      // Convert a blob to a base64 data URI
+      function blobToDataURL(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      // Convert a base64 data URI back to a blob
+      function dataURLToBlob(dataURL) {
+        const [header, base64] = dataURL.split(",");
+        const mime = header.match(/:(.*?);/)[1];
+        const binary = atob(base64);
+        const array = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          array[i] = binary.charCodeAt(i);
+        }
+        return new Blob([array], { type: mime });
+      }
+
       function App() {
         const [content, setContent] = React.useState("");
+        const [type, setType] = React.useState("text");
         const [loading, setLoading] = React.useState(false);
         const [snackbar, setSnackbar] = React.useState({ open: false, message: "", severity: "success" });
         const [fetching, setFetching] = React.useState(true);
 
-        // Copy-knop handler
+        // Copy button handler
         const handleCopy = async () => {
           try {
-            await navigator.clipboard.writeText(content);
+            if (type === "image") {
+              const blob = dataURLToBlob(content);
+              await navigator.clipboard.write([
+                new ClipboardItem({ [blob.type]: blob }),
+              ]);
+            } else {
+              await navigator.clipboard.writeText(content);
+            }
             setSnackbar({ open: true, message: "Copied to clipboard!", severity: "success" });
           } catch (e) {
             setSnackbar({ open: true, message: "Copy failed", severity: "error" });
           }
         };
 
-        // Polling: elke 2s ophalen
+        // Polling: fetch every 2s
         React.useEffect(() => {
           let active = true;
           const fetchClipboard = () => {
             fetch("/api/clipboard")
               .then(res => res.json())
               .then(data => {
-                if (active) setContent(data.content || "");
+                if (active) {
+                  setContent(data.content || "");
+                  setType(data.type || "text");
+                }
                 setFetching(false);
               })
               .catch(() => {
-                setSnackbar({ open: true, message: "Fout bij ophalen clipboard", severity: "error" });
+                setSnackbar({ open: true, message: "Failed to fetch clipboard", severity: "error" });
                 setFetching(false);
               });
           };
@@ -84,24 +117,73 @@
           };
         }, []);
 
-        // Paste-knop handler
+        // Paste button handler — auto-detects image vs text
         const handlePaste = async () => {
           setLoading(true);
           try {
-            const text = await navigator.clipboard.readText();
-            setContent(text);
+            const items = await navigator.clipboard.read();
+            let pastedContent = "";
+            let pastedType = "text";
+
+            for (const item of items) {
+              // Check for image types first
+              const imageType = item.types.find(t => t.startsWith("image/"));
+              if (imageType) {
+                const blob = await item.getType(imageType);
+                pastedContent = await blobToDataURL(blob);
+                pastedType = "image";
+                break;
+              }
+              // Fall back to text
+              if (item.types.includes("text/plain")) {
+                const blob = await item.getType("text/plain");
+                pastedContent = await blob.text();
+                pastedType = "text";
+                break;
+              }
+            }
+
+            setContent(pastedContent);
+            setType(pastedType);
+
             const res = await fetch("/api/clipboard", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ content: text }),
+              body: JSON.stringify({ content: pastedContent, type: pastedType }),
             });
-            if (!res.ok) throw new Error("Serverfout");
-            setSnackbar({ open: true, message: "Clipboard gesynchroniseerd!", severity: "success" });
+            if (!res.ok) throw new Error("Server error");
+            setSnackbar({ open: true, message: "Clipboard synced!", severity: "success" });
           } catch (e) {
-            setSnackbar({ open: true, message: "Clipboard lezen of sync mislukt", severity: "error" });
+            setSnackbar({ open: true, message: "Clipboard read or sync failed", severity: "error" });
           } finally {
             setLoading(false);
           }
+        };
+
+        // Render content based on type
+        const renderContent = () => {
+          if (fetching) {
+            return <Box display="flex" justifyContent="center"><CircularProgress size={32} /></Box>;
+          }
+          if (!content) {
+            return (
+              <Typography color="text.secondary" align="center">
+                (No clipboard content yet)
+              </Typography>
+            );
+          }
+          if (type === "image") {
+            return (
+              <Box display="flex" justifyContent="center">
+                <img
+                  src={content}
+                  alt="Clipboard image"
+                  style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain", borderRadius: 4 }}
+                />
+              </Box>
+            );
+          }
+          return content;
         };
 
         return (
@@ -133,33 +215,25 @@
                       position: "relative",
                     }}
                   >
-                    <Box sx={{ position: "absolute", top: 8, right: 8 }}>
+                    <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}>
                       <Tooltip title="Copy to clipboard">
                         <span>
-<Button
-  variant="contained"
-  color="primary"
-  size="small"
-  startIcon={<Icon>content_copy</Icon>}
-  onClick={handleCopy}
-  disabled={!content}
-  aria-label="copy"
-  sx={{ fontSize: 12, py: 1, px: 2 }}
->
-  COPY
-</Button>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            startIcon={<Icon>content_copy</Icon>}
+                            onClick={handleCopy}
+                            disabled={!content}
+                            aria-label="copy"
+                            sx={{ fontSize: 12, py: 1, px: 2 }}
+                          >
+                            COPY
+                          </Button>
                         </span>
                       </Tooltip>
                     </Box>
-                    {fetching ? (
-                      <Box display="flex" justifyContent="center"><CircularProgress size={32} /></Box>
-                    ) : content ? (
-                      content
-                    ) : (
-                      <Typography color="text.secondary" align="center">
-                        (Nog geen clipboard-inhoud)
-                      </Typography>
-                    )}
+                    {renderContent()}
                   </Paper>
                 </Box>
               </Box>

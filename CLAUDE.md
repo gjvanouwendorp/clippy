@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Clippy is a web-based clipboard that allows users to copy and paste text between different systems (e.g., phone to laptop). It runs as a lightweight Node.js/Express server with a single-page React frontend. Users on one device paste content via the browser Clipboard API, which is stored server-side, and then copy it on another device.
+Clippy is a web-based clipboard that allows users to copy and paste text and images between different systems (e.g., phone to laptop). It runs as a lightweight Node.js/Express server with a single-page React frontend. Users on one device paste content via the browser Clipboard API, which is stored server-side, and then copy it on another device. Content type (text or image) is auto-detected on paste.
 
 ## Architecture
 
@@ -19,6 +19,7 @@ Browser (Device A)                    Browser (Device B)
 - **Backend**: Single Express server (`server.js`) with two API endpoints and static file serving
 - **Frontend**: Single HTML file (`public/index.html`) with inline React/JSX compiled by Babel in the browser
 - **Storage**: In-memory (no database) — data is lost on server restart
+- **Content types**: Supports both text and images. Images are stored as base64 data URIs
 
 ## File Structure
 
@@ -56,14 +57,17 @@ The port can be overridden with the `PORT` environment variable.
 
 | Method | Path              | Description                        |
 |--------|-------------------|------------------------------------|
-| GET    | `/api/clipboard`  | Returns `{ content, updatedAt }`   |
-| POST   | `/api/clipboard`  | Accepts `{ content }` (string), returns `{ ok: true }` |
+| GET    | `/api/clipboard`  | Returns `{ content, type, updatedAt }` |
+| POST   | `/api/clipboard`  | Accepts `{ content, type }`, returns `{ ok: true }` |
 
-POST returns `400` if `content` is not a string.
+- `type` is `"text"` (default) or `"image"`
+- For images, `content` is a base64 data URI string
+- POST returns `400` if `content` is not a string or `type` is invalid
+- JSON body limit is 20 MB to accommodate image payloads
 
 ## Key Conventions
 
-- **Language**: Code comments and some UI strings are in Dutch (e.g., "ophalen" = fetch, "opslaan" = save, "Nog geen clipboard-inhoud" = No clipboard content yet)
+- **Language**: All code comments and UI strings must be in English
 - **No build step**: Do not introduce a build pipeline. Frontend changes go directly in `public/index.html`
 - **Minimal dependencies**: The only npm dependency is `express`. Frontend deps are CDN-loaded. Keep it lightweight
 - **Single-file frontend**: The entire UI lives in `public/index.html` with inline `<script type="text/babel">`. Do not split into separate JS/CSS files unless explicitly requested
@@ -72,7 +76,10 @@ POST returns `400` if `content` is not a string.
 
 ## Development Notes
 
-- The Clipboard API (`navigator.clipboard.readText()` / `.writeText()`) requires a secure context (HTTPS) or localhost
+- The Clipboard API (`navigator.clipboard.read()` / `.write()`) requires a secure context (HTTPS) or localhost
+- Image paste uses `navigator.clipboard.read()` with auto-detection of `image/*` MIME types
+- Image copy writes back to the clipboard as a blob via `ClipboardItem`
+- Image previews are constrained to the container width (`max-width: 100%`) and viewport height (`max-height: 60vh`)
 - No linter, formatter, or type checking is configured — plain JavaScript throughout
 - No tests exist yet. If adding tests, `jest` or `vitest` would be natural choices given the Node.js stack
 - The `.gitignore` excludes `node_modules/`, `.env`, `dist/`, `build/`, and editor/OS files

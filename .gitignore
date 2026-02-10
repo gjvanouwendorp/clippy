@@ -19,6 +19,6 @@ package-lock.json
 logs/
 *.log
 
-# Build output (voor toekomstige uitbreidingen)
+# Build output
 dist/
 build/

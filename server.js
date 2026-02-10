@@ -5,32 +5,38 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// In-memory opslag
-let clipboardText = "";
+// In-memory storage
+let clipboardContent = "";
+let clipboardType = "text"; // "text" or "image"
 let updatedAt = null;
 
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
 
-// API: ophalen van clipboard content
+// API: get clipboard content
 app.get("/api/clipboard", (req, res) => {
   res.json({
-    content: clipboardText,
+    content: clipboardContent,
+    type: clipboardType,
     updatedAt,
   });
 });
 
-// API: opslaan van clipboard content
+// API: save clipboard content
 app.post("/api/clipboard", (req, res) => {
-  const { content } = req.body;
+  const { content, type } = req.body;
   if (typeof content !== "string") {
     return res.status(400).json({ ok: false, error: "Invalid content" });
   }
-  clipboardText = content;
+  if (type !== undefined && type !== "text" && type !== "image") {
+    return res.status(400).json({ ok: false, error: "Invalid type" });
+  }
+  clipboardContent = content;
+  clipboardType = type || "text";
   updatedAt = new Date().toISOString();
   res.json({ ok: true });
 });
 
-// Statische files serveren uit 'public'
+// Serve static files from 'public'
 app.use(express.static(path.join(__dirname, "public")));
 
 app.listen(PORT, () => {
