@@ -73,6 +73,31 @@
         return new Blob([array], { type: mime });
       }
 
+      class ErrorBoundary extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = { hasError: false };
+        }
+        static getDerivedStateFromError() {
+          return { hasError: true };
+        }
+        render() {
+          if (this.state.hasError) {
+            return React.createElement(Box, {
+              display: "flex", flexDirection: "column", alignItems: "center",
+              justifyContent: "center", minHeight: "100vh", gap: 2,
+            },
+              React.createElement(Icon, { sx: { fontSize: 48, color: "error.main" } }, "error_outline"),
+              React.createElement(Typography, { variant: "h6" }, "Something went wrong."),
+              React.createElement(Button, {
+                variant: "contained", onClick: () => this.setState({ hasError: false }),
+              }, "Try again")
+            );
+          }
+          return this.props.children;
+        }
+      }
+
       function App() {
         const [darkMode, setDarkMode] = React.useState(() => {
           return localStorage.getItem("clippy-dark-mode") === "true";
@@ -406,7 +431,9 @@
         );
       }
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+      ReactDOM.createRoot(document.getElementById("root")).render(
+        <ErrorBoundary><App /></ErrorBoundary>
+      );
     </script>
   </body>
 </html>
