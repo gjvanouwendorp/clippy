@@ -5,32 +5,54 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// In-memory opslag
-let clipboardText = "";
+// In-memory storage
+let clipboardContent = "";
+let clipboardType = "text"; // "text" or "image"
 let updatedAt = null;
+let clearTimer = null;
 
-app.use(express.json());
+const CLEAR_DELAY_MS = 5 * 60 * 1000; // 5 minutes
 
-// API: ophalen van clipboard content
+function clearClipboard() {
+  clipboardContent = "";
+  clipboardType = "text";
+  updatedAt = null;
+  clearTimer = null;
+}
+
+function scheduleClear() {
+  if (clearTimer) clearTimeout(clearTimer);
+  clearTimer = setTimeout(clearClipboard, CLEAR_DELAY_MS);
+}
+
+app.use(express.json({ limit: "20mb" }));
+
+// API: get clipboard content
 app.get("/api/clipboard", (req, res) => {
   res.json({
-    content: clipboardText,
+    content: clipboardContent,
+    type: clipboardType,
     updatedAt,
   });
 });
 
-// API: opslaan van clipboard content
+// API: save clipboard content
 app.post("/api/clipboard", (req, res) => {
-  const { content } = req.body;
+  const { content, type } = req.body;
   if (typeof content !== "string") {
     return res.status(400).json({ ok: false, error: "Invalid content" });
   }
-  clipboardText = content;
+  if (type !== undefined && type !== "text" && type !== "image") {
+    return res.status(400).json({ ok: false, error: "Invalid type" });
+  }
+  clipboardContent = content;
+  clipboardType = type || "text";
   updatedAt = new Date().toISOString();
+  scheduleClear();
   res.json({ ok: true });
 });
 
-// Statische files serveren uit 'public'
+// Serve static files from 'public'
 app.use(express.static(path.join(__dirname, "public")));
 
 app.listen(PORT, () => {
