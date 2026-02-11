@@ -258,7 +258,7 @@
                 </IconButton>
               </Tooltip>
             </Box>
-            <Container maxWidth="sm" sx={{ mt: 8 }}>
+            <Container maxWidth={false} sx={{ mt: 8, width: "80%" }}>
               <Box display="flex" flexDirection="column" alignItems="center" gap={3}>
                 <Button
                   variant="contained"
@@ -281,7 +281,7 @@
                       whiteSpace: "pre-wrap",
                       wordBreak: "break-word",
                       fontFamily: "'Roboto Mono', monospace",
-                      fontSize: 18,
+                      fontSize: 14,
                     }}
                   >
                     {renderContent()}
