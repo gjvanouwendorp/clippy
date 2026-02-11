@@ -85,6 +85,26 @@
         const [loading, setLoading] = React.useState(false);
         const [snackbar, setSnackbar] = React.useState({ open: false, message: "", severity: "success" });
         const [fetching, setFetching] = React.useState(true);
+        const [updatedAt, setUpdatedAt] = React.useState(null);
+        const [timeAgo, setTimeAgo] = React.useState("");
+
+        const formatTimeAgo = (isoString) => {
+          if (!isoString) return "";
+          const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+          if (seconds < 5) return "just now";
+          if (seconds < 60) return seconds + "s ago";
+          const minutes = Math.floor(seconds / 60);
+          if (minutes < 60) return minutes + "m ago";
+          const hours = Math.floor(minutes / 60);
+          return hours + "h ago";
+        };
+
+        // Update the relative time string every second
+        React.useEffect(() => {
+          setTimeAgo(formatTimeAgo(updatedAt));
+          const timer = setInterval(() => setTimeAgo(formatTimeAgo(updatedAt)), 1000);
+          return () => clearInterval(timer);
+        }, [updatedAt]);
 
         const theme = React.useMemo(() => createTheme({
           palette: { mode: darkMode ? "dark" : "light" },
@@ -133,6 +153,7 @@
                 if (active) {
                   setContent(data.content || "");
                   setType(data.type || "text");
+                  setUpdatedAt(data.updatedAt || null);
                 }
                 setFetching(false);
               })
@@ -356,6 +377,11 @@
                       </span>
                     </Tooltip>
                   </Box>
+                  {updatedAt && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block", textAlign: "right" }}>
+                      Last synced: {timeAgo}
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             </Container>
