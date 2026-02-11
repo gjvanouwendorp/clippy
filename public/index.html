@@ -270,7 +270,7 @@
                 >
                   PASTE
                 </Button>
-                <Box sx={{ position: "relative", width: "100%" }}>
+                <Box sx={{ width: "100%" }}>
                   <Paper
                     elevation={3}
                     sx={{
@@ -282,45 +282,44 @@
                       wordBreak: "break-word",
                       fontFamily: "'Roboto Mono', monospace",
                       fontSize: 18,
-                      position: "relative",
                     }}
                   >
-                    <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 1, display: "flex", gap: 1 }}>
-                      <Tooltip title="Clear clipboard">
-                        <span>
-                          <Button
-                            variant="contained"
-                            color="error"
-                            size="small"
-                            startIcon={<Icon>delete_outline</Icon>}
-                            onClick={handleClear}
-                            disabled={!content}
-                            aria-label="clear"
-                            sx={{ fontSize: 12, py: 1, px: 2 }}
-                          >
-                            CLEAR
-                          </Button>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Copy to clipboard">
-                        <span>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            startIcon={<Icon>content_copy</Icon>}
-                            onClick={handleCopy}
-                            disabled={!content}
-                            aria-label="copy"
-                            sx={{ fontSize: 12, py: 1, px: 2 }}
-                          >
-                            COPY
-                          </Button>
-                        </span>
-                      </Tooltip>
-                    </Box>
                     {renderContent()}
                   </Paper>
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 1.5 }}>
+                    <Tooltip title="Clear clipboard">
+                      <span>
+                        <Button
+                          variant="contained"
+                          color="error"
+                          size="small"
+                          startIcon={<Icon>delete_outline</Icon>}
+                          onClick={handleClear}
+                          disabled={!content}
+                          aria-label="clear"
+                          sx={{ fontSize: 12, py: 1, px: 2 }}
+                        >
+                          CLEAR
+                        </Button>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Copy to clipboard">
+                      <span>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          startIcon={<Icon>content_copy</Icon>}
+                          onClick={handleCopy}
+                          disabled={!content}
+                          aria-label="copy"
+                          sx={{ fontSize: 12, py: 1, px: 2 }}
+                        >
+                          COPY
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </Box>
                 </Box>
               </Box>
             </Container>
