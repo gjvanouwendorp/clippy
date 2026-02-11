@@ -285,9 +285,13 @@
           }
         };
 
-        // Auto-paste on window focus
+        // Refs for keyboard shortcut and auto-paste handlers
         const handlePasteRef = React.useRef(handlePaste);
         handlePasteRef.current = handlePaste;
+        const handleCopyRef = React.useRef(handleCopy);
+        handleCopyRef.current = handleCopy;
+
+        // Auto-paste on window focus
         React.useEffect(() => {
           if (!autoPaste) return;
           const onFocus = () => handlePasteRef.current();
@@ -332,6 +336,23 @@
         };
         const handleDragOver = (e) => { e.preventDefault(); setDragging(true); };
         const handleDragLeave = () => setDragging(false);
+
+        // Keyboard shortcuts
+        React.useEffect(() => {
+          const onKeyDown = (e) => {
+            const mod = e.metaKey || e.ctrlKey;
+            if (mod && !e.shiftKey && e.key === "v") {
+              e.preventDefault();
+              handlePasteRef.current();
+            }
+            if (mod && e.shiftKey && e.key === "C") {
+              e.preventDefault();
+              if (content) handleCopyRef.current();
+            }
+          };
+          window.addEventListener("keydown", onKeyDown);
+          return () => window.removeEventListener("keydown", onKeyDown);
+        }, [content]);
 
         // Render content based on type
         const renderContent = () => {
@@ -484,6 +505,9 @@
                   )}
                   <Typography variant="caption" color="text.disabled" sx={{ mt: 1, display: "block", textAlign: "center" }}>
                     You can also drag and drop files or images onto the content area above.
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: "block", textAlign: "center" }}>
+                    Keyboard shortcuts: Ctrl+V to paste, Ctrl+Shift+C to copy.
                   </Typography>
                 </Box>
                 {history.length > 0 && (
