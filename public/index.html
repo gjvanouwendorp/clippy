@@ -190,6 +190,23 @@
           }
         };
 
+        // Clear button handler
+        const handleClear = async () => {
+          try {
+            const res = await fetch("/api/clipboard", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: "", type: "text" }),
+            });
+            if (!res.ok) throw new Error("Server error");
+            setContent("");
+            setType("text");
+            setSnackbar({ open: true, message: "Clipboard cleared!", severity: "success" });
+          } catch (e) {
+            setSnackbar({ open: true, message: "Clear failed", severity: "error" });
+          }
+        };
+
         // Auto-paste on window focus
         const handlePasteRef = React.useRef(handlePaste);
         handlePasteRef.current = handlePaste;
@@ -268,7 +285,23 @@
                       position: "relative",
                     }}
                   >
-                    <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}>
+                    <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 1, display: "flex", gap: 1 }}>
+                      <Tooltip title="Clear clipboard">
+                        <span>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            startIcon={<Icon>delete_outline</Icon>}
+                            onClick={handleClear}
+                            disabled={!content}
+                            aria-label="clear"
+                            sx={{ fontSize: 12, py: 1, px: 2 }}
+                          >
+                            CLEAR
+                          </Button>
+                        </span>
+                      </Tooltip>
                       <Tooltip title="Copy to clipboard">
                         <span>
                           <Button
