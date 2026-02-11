@@ -248,42 +248,51 @@
         return (
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Box sx={{ position: "fixed", top: 16, left: 24, display: "flex", alignItems: "center", gap: 0.5 }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M15.5 3C13.57 3 12 4.57 12 6.5V17.5C12 18.88 13.12 20 14.5 20C15.88 20 17 18.88 17 17.5V7H15V17.5C15 17.78 14.78 18 14.5 18C14.22 18 14 17.78 14 17.5V6.5C14 5.67 14.67 5 15.5 5C16.33 5 17 5.67 17 6.5V17.5C17 18.88 15.88 20 14.5 20C13.12 20 12 18.88 12 17.5V7H10V17.5C10 19.99 12.01 22 14.5 22C16.99 22 19 19.99 19 17.5V6.5C19 4.57 17.43 3 15.5 3Z"
-                  fill="currentColor"
-                  transform="rotate(180 12 12)"
+            <Box sx={{
+              position: "fixed", top: 0, left: 0, right: 0, zIndex: 1100,
+              display: "flex", flexWrap: "wrap", alignItems: "center",
+              justifyContent: "space-between",
+              px: 3, py: 1.5,
+              bgcolor: "background.default",
+              borderBottom: 1, borderColor: "divider",
+            }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M15.5 3C13.57 3 12 4.57 12 6.5V17.5C12 18.88 13.12 20 14.5 20C15.88 20 17 18.88 17 17.5V7H15V17.5C15 17.78 14.78 18 14.5 18C14.22 18 14 17.78 14 17.5V6.5C14 5.67 14.67 5 15.5 5C16.33 5 17 5.67 17 6.5V17.5C17 18.88 15.88 20 14.5 20C13.12 20 12 18.88 12 17.5V7H10V17.5C10 19.99 12.01 22 14.5 22C16.99 22 19 19.99 19 17.5V6.5C19 4.57 17.43 3 15.5 3Z"
+                    fill="currentColor"
+                    transform="rotate(180 12 12)"
+                  />
+                </svg>
+                <Typography
+                  variant="h5"
+                  component="span"
+                  sx={{ fontWeight: 700, letterSpacing: 0.5 }}
+                >
+                  Clippy
+                </Typography>
+                <Typography
+                  variant="body2"
+                  component="span"
+                  sx={{ color: "text.secondary", ml: 0.5, fontSize: 13, fontStyle: "italic" }}
+                >
+                  by InteractionCoder
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <FormControlLabel
+                  control={<Switch checked={autoPaste} onChange={toggleAutoPaste} size="small" />}
+                  label="Auto-paste"
+                  sx={{ mr: 0, "& .MuiFormControlLabel-label": { fontSize: 14 } }}
                 />
-              </svg>
-              <Typography
-                variant="h5"
-                component="span"
-                sx={{ fontWeight: 700, letterSpacing: 0.5 }}
-              >
-                Clippy
-              </Typography>
-              <Typography
-                variant="body2"
-                component="span"
-                sx={{ color: "text.secondary", ml: 0.5, fontSize: 13, fontStyle: "italic" }}
-              >
-                by InteractionCoder
-              </Typography>
+                <Tooltip title={darkMode ? "Switch to light mode" : "Switch to dark mode"}>
+                  <IconButton onClick={toggleDarkMode} color="inherit">
+                    <Icon>{darkMode ? "light_mode" : "dark_mode"}</Icon>
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Box>
-            <Box sx={{ position: "fixed", top: 16, right: 16, display: "flex", alignItems: "center", gap: 1 }}>
-              <FormControlLabel
-                control={<Switch checked={autoPaste} onChange={toggleAutoPaste} size="small" />}
-                label="Auto-paste"
-                sx={{ mr: 0, "& .MuiFormControlLabel-label": { fontSize: 14 } }}
-              />
-              <Tooltip title={darkMode ? "Switch to light mode" : "Switch to dark mode"}>
-                <IconButton onClick={toggleDarkMode} color="inherit">
-                  <Icon>{darkMode ? "light_mode" : "dark_mode"}</Icon>
-                </IconButton>
-              </Tooltip>
-            </Box>
-            <Container maxWidth={false} sx={{ mt: 8, width: "80%" }}>
+            <Container maxWidth={false} sx={{ mt: 10, width: "80%" }}>
               <Box display="flex" flexDirection="column" alignItems="center" gap={3}>
                 <Button
                   variant="contained"
