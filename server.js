@@ -9,6 +9,21 @@ const PORT = process.env.PORT || 3000;
 let clipboardContent = "";
 let clipboardType = "text"; // "text" or "image"
 let updatedAt = null;
+let clearTimer = null;
+
+const CLEAR_DELAY_MS = 5 * 60 * 1000; // 5 minutes
+
+function clearClipboard() {
+  clipboardContent = "";
+  clipboardType = "text";
+  updatedAt = null;
+  clearTimer = null;
+}
+
+function scheduleClear() {
+  if (clearTimer) clearTimeout(clearTimer);
+  clearTimer = setTimeout(clearClipboard, CLEAR_DELAY_MS);
+}
 
 app.use(express.json({ limit: "20mb" }));
 
@@ -33,6 +48,7 @@ app.post("/api/clipboard", (req, res) => {
   clipboardContent = content;
   clipboardType = type || "text";
   updatedAt = new Date().toISOString();
+  scheduleClear();
   res.json({ ok: true });
 });
 
