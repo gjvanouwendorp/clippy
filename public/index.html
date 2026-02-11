@@ -87,6 +87,7 @@
         const [fetching, setFetching] = React.useState(true);
         const [updatedAt, setUpdatedAt] = React.useState(null);
         const [timeAgo, setTimeAgo] = React.useState("");
+        const [justCopied, setJustCopied] = React.useState(false);
 
         const formatTimeAgo = (isoString) => {
           if (!isoString) return "";
@@ -137,6 +138,8 @@
             } else {
               await navigator.clipboard.writeText(content);
             }
+            setJustCopied(true);
+            setTimeout(() => setJustCopied(false), 1500);
             setSnackbar({ open: true, message: "Copied to clipboard!", severity: "success" });
           } catch (e) {
             setSnackbar({ open: true, message: "Copy failed", severity: "error" });
@@ -364,15 +367,15 @@
                       <span>
                         <Button
                           variant="contained"
-                          color="primary"
+                          color={justCopied ? "success" : "primary"}
                           size="small"
-                          startIcon={<Icon>content_copy</Icon>}
+                          startIcon={<Icon>{justCopied ? "check" : "content_copy"}</Icon>}
                           onClick={handleCopy}
                           disabled={!content}
                           aria-label="copy"
                           sx={{ fontSize: 12, py: 1, px: 2 }}
                         >
-                          COPY
+                          {justCopied ? "COPIED!" : "COPY"}
                         </Button>
                       </span>
                     </Tooltip>
