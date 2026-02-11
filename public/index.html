@@ -295,6 +295,44 @@
           return () => window.removeEventListener("focus", onFocus);
         }, [autoPaste]);
 
+        // Drag and drop handler
+        const [dragging, setDragging] = React.useState(false);
+        const handleDrop = async (e) => {
+          e.preventDefault();
+          setDragging(false);
+          setLoading(true);
+          try {
+            let droppedContent = "";
+            let droppedType = "text";
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith("image/")) {
+              droppedContent = await blobToDataURL(files[0]);
+              droppedType = "image";
+            } else {
+              droppedContent = e.dataTransfer.getData("text/plain") || "";
+              if (!droppedContent && files.length > 0) {
+                droppedContent = await files[0].text();
+              }
+            }
+            if (!droppedContent) throw new Error("Nothing to drop");
+            setContent(droppedContent);
+            setType(droppedType);
+            const res = await fetch("/api/clipboard", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: droppedContent, type: droppedType }),
+            });
+            if (!res.ok) throw new Error("Server error");
+            setSnackbar({ open: true, message: "Dropped content synced!", severity: "success" });
+          } catch (e) {
+            setSnackbar({ open: true, message: "Drop failed", severity: "error" });
+          } finally {
+            setLoading(false);
+          }
+        };
+        const handleDragOver = (e) => { e.preventDefault(); setDragging(true); };
+        const handleDragLeave = () => setDragging(false);
+
         // Render content based on type
         const renderContent = () => {
           if (fetching) {
@@ -380,7 +418,12 @@
                 >
                   PASTE
                 </Button>
-                <Box sx={{ width: "100%" }}>
+                <Box
+                  sx={{ width: "100%" }}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
                   <Paper
                     elevation={3}
                     sx={{
@@ -389,6 +432,8 @@
                       p: 3,
                       bgcolor: "background.paper",
                       whiteSpace: "pre-wrap",
+                      border: dragging ? "2px dashed" : "2px solid transparent",
+                      borderColor: dragging ? "primary.main" : "transparent",
                       wordBreak: "break-word",
                       fontFamily: "'Roboto Mono', monospace",
                       fontSize: 14,
@@ -437,6 +482,9 @@
                       Last synced: {timeAgo}
                     </Typography>
                   )}
+                  <Typography variant="caption" color="text.disabled" sx={{ mt: 1, display: "block", textAlign: "center" }}>
+                    You can also drag and drop files or images onto the content area above.
+                  </Typography>
                 </Box>
                 {history.length > 0 && (
                   <Box sx={{ width: "100%", mt: 2 }}>
