@@ -113,6 +113,7 @@
         const [updatedAt, setUpdatedAt] = React.useState(null);
         const [timeAgo, setTimeAgo] = React.useState("");
         const [justCopied, setJustCopied] = React.useState(false);
+        const [history, setHistory] = React.useState([]);
 
         const formatTimeAgo = (isoString) => {
           if (!isoString) return "";
@@ -131,6 +132,31 @@
           const timer = setInterval(() => setTimeAgo(formatTimeAgo(updatedAt)), 1000);
           return () => clearInterval(timer);
         }, [updatedAt]);
+
+        const fetchHistory = () => {
+          fetch("/api/clipboard/history")
+            .then(res => res.json())
+            .then(data => setHistory(data))
+            .catch(() => {});
+        };
+
+        const handleDeleteHistory = async (index) => {
+          try {
+            await fetch("/api/clipboard/history/" + index, { method: "DELETE" });
+            fetchHistory();
+          } catch (e) {}
+        };
+
+        const handleRestoreHistory = async (index) => {
+          try {
+            const res = await fetch("/api/clipboard/history/" + index + "/restore", { method: "POST" });
+            if (!res.ok) throw new Error();
+            setSnackbar({ open: true, message: "Restored from history!", severity: "success" });
+            fetchHistory();
+          } catch (e) {
+            setSnackbar({ open: true, message: "Restore failed", severity: "error" });
+          }
+        };
 
         const theme = React.useMemo(() => createTheme({
           palette: { mode: darkMode ? "dark" : "light" },
@@ -191,7 +217,8 @@
               });
           };
           fetchClipboard();
-          const interval = setInterval(fetchClipboard, 2000);
+          fetchHistory();
+          const interval = setInterval(() => { fetchClipboard(); fetchHistory(); }, 2000);
           return () => {
             active = false;
             clearInterval(interval);
@@ -411,6 +438,49 @@
                     </Typography>
                   )}
                 </Box>
+                {history.length > 0 && (
+                  <Box sx={{ width: "100%", mt: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      History ({history.length}/5)
+                    </Typography>
+                    {history.map((entry, i) => (
+                      <Paper
+                        key={i}
+                        variant="outlined"
+                        sx={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          px: 2, py: 1, mb: 0.5,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: "'Roboto Mono', monospace", fontSize: 12,
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            flex: 1, mr: 1,
+                          }}
+                        >
+                          {entry.type === "image"
+                            ? <Icon sx={{ fontSize: 16, verticalAlign: "middle", mr: 0.5 }}>image</Icon>
+                            : null}
+                          {entry.preview}
+                        </Typography>
+                        <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
+                          <Tooltip title="Restore to clipboard">
+                            <IconButton size="small" onClick={() => handleRestoreHistory(i)}>
+                              <Icon sx={{ fontSize: 18 }}>restore</Icon>
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Remove from history">
+                            <IconButton size="small" onClick={() => handleDeleteHistory(i)}>
+                              <Icon sx={{ fontSize: 18 }}>close</Icon>
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Paper>
+                    ))}
+                  </Box>
+                )}
               </Box>
             </Container>
             <Snackbar
