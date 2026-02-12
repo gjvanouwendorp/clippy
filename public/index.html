@@ -1,17 +1,19 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'">
     <title>Clippy Clipboard Sync</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M15.5 3C13.57 3 12 4.57 12 6.5V17.5C12 18.88 13.12 20 14.5 20C15.88 20 17 18.88 17 17.5V7H15V17.5C15 17.78 14.78 18 14.5 18C14.22 18 14 17.78 14 17.5V6.5C14 5.67 14.67 5 15.5 5C16.33 5 17 5.67 17 6.5V17.5C17 18.88 15.88 20 14.5 20C13.12 20 12 18.88 12 17.5V7H10V17.5C10 19.99 12.01 22 14.5 22C16.99 22 19 19.99 19 17.5V6.5C19 4.57 17.43 3 15.5 3Z' fill='%23666' transform='rotate(180 12 12)'/></svg>">
     <!-- Roboto font & Material Icons -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500&display=swap" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
     <!-- MUI, React, Babel -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/@mui/material@5.15.0/umd/material-ui.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@mui/material@5.15.0/umd/material-ui.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@emotion/react@11.11.1/dist/emotion-react.umd.min.js" crossorigin></script>
     <script src="https://unpkg.com/@emotion/styled@11.11.0/dist/emotion-styled.umd.min.js" crossorigin></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
@@ -71,6 +73,31 @@
         return new Blob([array], { type: mime });
       }
 
+      class ErrorBoundary extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = { hasError: false };
+        }
+        static getDerivedStateFromError() {
+          return { hasError: true };
+        }
+        render() {
+          if (this.state.hasError) {
+            return React.createElement(Box, {
+              display: "flex", flexDirection: "column", alignItems: "center",
+              justifyContent: "center", minHeight: "100vh", gap: 2,
+            },
+              React.createElement(Icon, { sx: { fontSize: 48, color: "error.main" } }, "error_outline"),
+              React.createElement(Typography, { variant: "h6" }, "Something went wrong."),
+              React.createElement(Button, {
+                variant: "contained", onClick: () => this.setState({ hasError: false }),
+              }, "Try again")
+            );
+          }
+          return this.props.children;
+        }
+      }
+
       function App() {
         const [darkMode, setDarkMode] = React.useState(() => {
           return localStorage.getItem("clippy-dark-mode") === "true";
@@ -83,6 +110,53 @@
         const [loading, setLoading] = React.useState(false);
         const [snackbar, setSnackbar] = React.useState({ open: false, message: "", severity: "success" });
         const [fetching, setFetching] = React.useState(true);
+        const [updatedAt, setUpdatedAt] = React.useState(null);
+        const [timeAgo, setTimeAgo] = React.useState("");
+        const [justCopied, setJustCopied] = React.useState(false);
+        const [history, setHistory] = React.useState([]);
+
+        const formatTimeAgo = (isoString) => {
+          if (!isoString) return "";
+          const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+          if (seconds < 5) return "just now";
+          if (seconds < 60) return seconds + "s ago";
+          const minutes = Math.floor(seconds / 60);
+          if (minutes < 60) return minutes + "m ago";
+          const hours = Math.floor(minutes / 60);
+          return hours + "h ago";
+        };
+
+        // Update the relative time string every second
+        React.useEffect(() => {
+          setTimeAgo(formatTimeAgo(updatedAt));
+          const timer = setInterval(() => setTimeAgo(formatTimeAgo(updatedAt)), 1000);
+          return () => clearInterval(timer);
+        }, [updatedAt]);
+
+        const fetchHistory = () => {
+          fetch("/api/clipboard/history")
+            .then(res => res.json())
+            .then(data => setHistory(data))
+            .catch(() => {});
+        };
+
+        const handleDeleteHistory = async (index) => {
+          try {
+            await fetch("/api/clipboard/history/" + index, { method: "DELETE" });
+            fetchHistory();
+          } catch (e) {}
+        };
+
+        const handleRestoreHistory = async (index) => {
+          try {
+            const res = await fetch("/api/clipboard/history/" + index + "/restore", { method: "POST" });
+            if (!res.ok) throw new Error();
+            setSnackbar({ open: true, message: "Restored from history!", severity: "success" });
+            fetchHistory();
+          } catch (e) {
+            setSnackbar({ open: true, message: "Restore failed", severity: "error" });
+          }
+        };
 
         const theme = React.useMemo(() => createTheme({
           palette: { mode: darkMode ? "dark" : "light" },
@@ -115,6 +189,8 @@
             } else {
               await navigator.clipboard.writeText(content);
             }
+            setJustCopied(true);
+            setTimeout(() => setJustCopied(false), 1500);
             setSnackbar({ open: true, message: "Copied to clipboard!", severity: "success" });
           } catch (e) {
             setSnackbar({ open: true, message: "Copy failed", severity: "error" });
@@ -131,6 +207,7 @@
                 if (active) {
                   setContent(data.content || "");
                   setType(data.type || "text");
+                  setUpdatedAt(data.updatedAt || null);
                 }
                 setFetching(false);
               })
@@ -140,7 +217,8 @@
               });
           };
           fetchClipboard();
-          const interval = setInterval(fetchClipboard, 2000);
+          fetchHistory();
+          const interval = setInterval(() => { fetchClipboard(); fetchHistory(); }, 2000);
           return () => {
             active = false;
             clearInterval(interval);
@@ -207,15 +285,74 @@
           }
         };
 
-        // Auto-paste on window focus
+        // Refs for keyboard shortcut and auto-paste handlers
         const handlePasteRef = React.useRef(handlePaste);
         handlePasteRef.current = handlePaste;
+        const handleCopyRef = React.useRef(handleCopy);
+        handleCopyRef.current = handleCopy;
+
+        // Auto-paste on window focus
         React.useEffect(() => {
           if (!autoPaste) return;
           const onFocus = () => handlePasteRef.current();
           window.addEventListener("focus", onFocus);
           return () => window.removeEventListener("focus", onFocus);
         }, [autoPaste]);
+
+        // Drag and drop handler
+        const [dragging, setDragging] = React.useState(false);
+        const handleDrop = async (e) => {
+          e.preventDefault();
+          setDragging(false);
+          setLoading(true);
+          try {
+            let droppedContent = "";
+            let droppedType = "text";
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith("image/")) {
+              droppedContent = await blobToDataURL(files[0]);
+              droppedType = "image";
+            } else {
+              droppedContent = e.dataTransfer.getData("text/plain") || "";
+              if (!droppedContent && files.length > 0) {
+                droppedContent = await files[0].text();
+              }
+            }
+            if (!droppedContent) throw new Error("Nothing to drop");
+            setContent(droppedContent);
+            setType(droppedType);
+            const res = await fetch("/api/clipboard", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: droppedContent, type: droppedType }),
+            });
+            if (!res.ok) throw new Error("Server error");
+            setSnackbar({ open: true, message: "Dropped content synced!", severity: "success" });
+          } catch (e) {
+            setSnackbar({ open: true, message: "Drop failed", severity: "error" });
+          } finally {
+            setLoading(false);
+          }
+        };
+        const handleDragOver = (e) => { e.preventDefault(); setDragging(true); };
+        const handleDragLeave = () => setDragging(false);
+
+        // Keyboard shortcuts
+        React.useEffect(() => {
+          const onKeyDown = (e) => {
+            const mod = e.metaKey || e.ctrlKey;
+            if (mod && !e.shiftKey && e.key === "v") {
+              e.preventDefault();
+              handlePasteRef.current();
+            }
+            if (mod && e.shiftKey && e.key === "C") {
+              e.preventDefault();
+              if (content) handleCopyRef.current();
+            }
+          };
+          window.addEventListener("keydown", onKeyDown);
+          return () => window.removeEventListener("keydown", onKeyDown);
+        }, [content]);
 
         // Render content based on type
         const renderContent = () => {
@@ -246,19 +383,51 @@
         return (
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Box sx={{ position: "fixed", top: 16, right: 16, display: "flex", alignItems: "center", gap: 1 }}>
-              <FormControlLabel
-                control={<Switch checked={autoPaste} onChange={toggleAutoPaste} size="small" />}
-                label="Auto-paste"
-                sx={{ mr: 0, "& .MuiFormControlLabel-label": { fontSize: 14 } }}
-              />
-              <Tooltip title={darkMode ? "Switch to light mode" : "Switch to dark mode"}>
-                <IconButton onClick={toggleDarkMode} color="inherit">
-                  <Icon>{darkMode ? "light_mode" : "dark_mode"}</Icon>
-                </IconButton>
-              </Tooltip>
+            <Box sx={{
+              position: "fixed", top: 0, left: 0, right: 0, zIndex: 1100,
+              display: "flex", flexWrap: "wrap", alignItems: "center",
+              justifyContent: "space-between",
+              px: 3, py: 1.5,
+              bgcolor: "background.default",
+              borderBottom: 1, borderColor: "divider",
+            }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M15.5 3C13.57 3 12 4.57 12 6.5V17.5C12 18.88 13.12 20 14.5 20C15.88 20 17 18.88 17 17.5V7H15V17.5C15 17.78 14.78 18 14.5 18C14.22 18 14 17.78 14 17.5V6.5C14 5.67 14.67 5 15.5 5C16.33 5 17 5.67 17 6.5V17.5C17 18.88 15.88 20 14.5 20C13.12 20 12 18.88 12 17.5V7H10V17.5C10 19.99 12.01 22 14.5 22C16.99 22 19 19.99 19 17.5V6.5C19 4.57 17.43 3 15.5 3Z"
+                    fill="currentColor"
+                    transform="rotate(180 12 12)"
+                  />
+                </svg>
+                <Typography
+                  variant="h5"
+                  component="span"
+                  sx={{ fontWeight: 700, letterSpacing: 0.5 }}
+                >
+                  Clippy
+                </Typography>
+                <Typography
+                  variant="body2"
+                  component="span"
+                  sx={{ color: "text.secondary", ml: 0.5, fontSize: 13, fontStyle: "italic" }}
+                >
+                  by InteractionCoder
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <FormControlLabel
+                  control={<Switch checked={autoPaste} onChange={toggleAutoPaste} size="small" />}
+                  label="Auto-paste"
+                  sx={{ mr: 0, "& .MuiFormControlLabel-label": { fontSize: 14 } }}
+                />
+                <Tooltip title={darkMode ? "Switch to light mode" : "Switch to dark mode"}>
+                  <IconButton onClick={toggleDarkMode} color="inherit">
+                    <Icon>{darkMode ? "light_mode" : "dark_mode"}</Icon>
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Box>
-            <Container maxWidth="sm" sx={{ mt: 8 }}>
+            <Container maxWidth={false} sx={{ mt: 10, width: "80%" }}>
               <Box display="flex" flexDirection="column" alignItems="center" gap={3}>
                 <Button
                   variant="contained"
@@ -270,7 +439,12 @@
                 >
                   PASTE
                 </Button>
-                <Box sx={{ position: "relative", width: "100%" }}>
+                <Box
+                  sx={{ width: "100%" }}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
                   <Paper
                     elevation={3}
                     sx={{
@@ -279,49 +453,106 @@
                       p: 3,
                       bgcolor: "background.paper",
                       whiteSpace: "pre-wrap",
+                      border: dragging ? "2px dashed" : "2px solid transparent",
+                      borderColor: dragging ? "primary.main" : "transparent",
                       wordBreak: "break-word",
                       fontFamily: "'Roboto Mono', monospace",
-                      fontSize: 18,
-                      position: "relative",
+                      fontSize: 14,
+                      maxHeight: "60vh",
+                      overflowY: "auto",
                     }}
                   >
-                    <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 1, display: "flex", gap: 1 }}>
-                      <Tooltip title="Clear clipboard">
-                        <span>
-                          <Button
-                            variant="contained"
-                            color="error"
-                            size="small"
-                            startIcon={<Icon>delete_outline</Icon>}
-                            onClick={handleClear}
-                            disabled={!content}
-                            aria-label="clear"
-                            sx={{ fontSize: 12, py: 1, px: 2 }}
-                          >
-                            CLEAR
-                          </Button>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Copy to clipboard">
-                        <span>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            startIcon={<Icon>content_copy</Icon>}
-                            onClick={handleCopy}
-                            disabled={!content}
-                            aria-label="copy"
-                            sx={{ fontSize: 12, py: 1, px: 2 }}
-                          >
-                            COPY
-                          </Button>
-                        </span>
-                      </Tooltip>
-                    </Box>
                     {renderContent()}
                   </Paper>
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 1.5 }}>
+                    <Tooltip title="Clear clipboard">
+                      <span>
+                        <Button
+                          variant="contained"
+                          color="error"
+                          size="small"
+                          startIcon={<Icon>delete_outline</Icon>}
+                          onClick={handleClear}
+                          disabled={!content}
+                          aria-label="clear"
+                          sx={{ fontSize: 12, py: 1, px: 2 }}
+                        >
+                          CLEAR
+                        </Button>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Copy to clipboard">
+                      <span>
+                        <Button
+                          variant="contained"
+                          color={justCopied ? "success" : "primary"}
+                          size="small"
+                          startIcon={<Icon>{justCopied ? "check" : "content_copy"}</Icon>}
+                          onClick={handleCopy}
+                          disabled={!content}
+                          aria-label="copy"
+                          sx={{ fontSize: 12, py: 1, px: 2 }}
+                        >
+                          {justCopied ? "COPIED!" : "COPY"}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </Box>
+                  {updatedAt && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block", textAlign: "right" }}>
+                      Last synced: {timeAgo}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" color="text.disabled" sx={{ mt: 1, display: "block", textAlign: "center" }}>
+                    You can also drag and drop files or images onto the content area above.
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: "block", textAlign: "center" }}>
+                    Keyboard shortcuts: Ctrl+V to paste, Ctrl+Shift+C to copy.
+                  </Typography>
                 </Box>
+                {history.length > 0 && (
+                  <Box sx={{ width: "100%", mt: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      History ({history.length}/5)
+                    </Typography>
+                    {history.map((entry, i) => (
+                      <Paper
+                        key={i}
+                        variant="outlined"
+                        sx={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          px: 2, py: 1, mb: 0.5,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: "'Roboto Mono', monospace", fontSize: 12,
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            flex: 1, mr: 1,
+                          }}
+                        >
+                          {entry.type === "image"
+                            ? <Icon sx={{ fontSize: 16, verticalAlign: "middle", mr: 0.5 }}>image</Icon>
+                            : null}
+                          {entry.preview}
+                        </Typography>
+                        <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
+                          <Tooltip title="Restore to clipboard">
+                            <IconButton size="small" onClick={() => handleRestoreHistory(i)}>
+                              <Icon sx={{ fontSize: 18 }}>restore</Icon>
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Remove from history">
+                            <IconButton size="small" onClick={() => handleDeleteHistory(i)}>
+                              <Icon sx={{ fontSize: 18 }}>close</Icon>
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Paper>
+                    ))}
+                  </Box>
+                )}
               </Box>
             </Container>
             <Snackbar
@@ -342,7 +573,9 @@
         );
       }
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+      ReactDOM.createRoot(document.getElementById("root")).render(
+        <ErrorBoundary><App /></ErrorBoundary>
+      );
     </script>
   </body>
 </html>
