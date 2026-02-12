@@ -12,6 +12,7 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: clippy.interactioncoder.com
+          port: 2468
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: /var/www/clippy/deploy.sh
