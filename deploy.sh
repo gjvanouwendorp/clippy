@@ -7,7 +7,7 @@ echo "Pulling latest changes..."
 git pull origin main
 
 echo "Installing dependencies..."
-npm install --production
+/home/gjvanouwendorp/.nvm/versions/node/v22.18.0/bin/npm install --production
 
 echo "Restarting clippy service..."
 sudo systemctl restart clippy.service
