@@ -14,7 +14,7 @@ Environment=NODE_ENV=production
 Environment=PORT=3000
 
 # Absolute path: systemd does not load the user's nvm shell environment.
-ExecStart=/home/gjvanouwendorp/.nvm/versions/node/v22.18.0/bin/node /var/www/clippy/server.js
+ExecStart=/usr/local/bin/node /var/www/clippy/server.js
 
 Restart=always
 RestartSec=2
@@ -29,6 +29,8 @@ SyslogIdentifier=clippy
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
+# read-only rather than true: /usr/local/bin/node symlinks into the nvm
+# install under /home. Set to true once node no longer lives there.
 ProtectHome=read-only
 ReadOnlyPaths=/var/www/clippy
 ProtectKernelTunables=true
