@@ -1,0 +1,44 @@
+[Unit]
+Description=Clippy clipboard sync
+Documentation=https://github.com/gjvanouwendorp/clippy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gjvanouwendorp
+Group=gjvanouwendorp
+WorkingDirectory=/var/www/clippy
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Absolute path: systemd does not load the user's nvm shell environment.
+ExecStart=/usr/local/bin/node /var/www/clippy/server.js
+
+Restart=always
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=clippy
+
+# Hardening — the app only reads its own files and listens on a local port.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+# read-only rather than true: /usr/local/bin/node symlinks into the nvm
+# install under /home. Set to true once node no longer lives there.
+ProtectHome=read-only
+ReadOnlyPaths=/var/www/clippy
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
